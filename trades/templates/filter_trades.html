@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filtrar Transações</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="#">📊 Dashboard de Transações</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Filtros -->
+        <div class="card shadow-sm p-4 mb-4">
+            <h2 class="mb-3 text-primary">Filtrar Transações</h2>
+            <form method="get">
+                <div class="row">
+                    <div class="col-md-3">{{ form.start_date.label_tag }} {{ form.start_date }}</div>
+                    <div class="col-md-3">{{ form.end_date.label_tag }} {{ form.end_date }}</div>
+                    
+                    <!-- Filtro por Moeda da Coluna Executed -->
+                    <div class="col-md-3">
+                        <label for="executed_coin">Moeda Executada:</label>
+                        <select name="executed_coin" class="form-select">
+                            <option value="ALL">Todas</option>
+                            {% for coin in available_executed_coins %}
+                                <option value="{{ coin }}" {% if executed_coin == coin %}selected{% endif %}>{{ coin }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Filtro por Moeda da Coluna Amount -->
+                    <div class="col-md-3">
+                        <label for="amount_coin">Moeda do Montante:</label>
+                        <select name="amount_coin" class="form-select">
+                            <option value="ALL">Todas</option>
+                            {% for coin in available_amount_coins %}
+                                <option value="{{ coin }}" {% if amount_coin == coin %}selected{% endif %}>{{ coin }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">Filtrar</button>
+            </form>
+        </div>
+
+        <!-- Resumo -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card text-white bg-warning mb-3 shadow-sm">
+                    <div class="card-header">Preço Médio de Compra</div>
+                    <div class="card-body">
+                        <h5 class="card-title">${{ avg_buy_price|floatformat:2 }}</h5>
+                    </div>
+                </div>
+            </div>
+            {% if executed_coin and executed_coin != "ALL" %}
+            <div class="col-md-4">
+                <div class="card text-white bg-success mb-3 shadow-sm">
+                    <div class="card-header">Preço Atual de {{ executed_coin }}</div>
+                    <div class="card-body">
+                        <h5 class="card-title">${{ asset_price_now|floatformat:2 }}</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-white {% if usd_gain >= 0 %}bg-primary{% else %}bg-danger{% endif %} mb-3 shadow-sm">
+                    <div class="card-header">Ganho em USD</div>
+                    <div class="card-body">
+                        <h5 class="card-title">${{ usd_gain|floatformat:2 }}</h5>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card text-white {% if total_buy_volume >= 0 %}bg-primary{% else %}bg-danger{% endif %} mb-3 shadow-sm">
+                    <div class="card-header">Total comprado</div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ total_buy_volume|floatformat:2 }}</h5>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Gráficos -->
+        <div class="card shadow-sm p-4">
+            <h3 class="text-primary">Gráficos das Transações</h3>
+
+            <!-- Gráfico do Preço -->
+            <h5 class="mt-4">Preço das Transações ao Longo do Tempo</h5>
+            <canvas id="priceChart"></canvas>
+
+            <!-- Gráfico do Volume Executado -->
+            <h5 class="mt-4">Volume Executado ao Longo do Tempo</h5>
+            <canvas id="volumeChart"></canvas>
+        </div>
+    </div>
+
+    <!-- JavaScript para Chart.js -->
+    <script>
+        var tradeDates = {{ trade_dates|safe }};
+        var tradePrices = {{ trade_prices|safe }};
+        var tradeVolumes = {{ trade_volumes|safe }};
+
+        // Gráfico do Preço
+        var ctx1 = document.getElementById('priceChart').getContext('2d');
+        var priceChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: tradeDates,
+                datasets: [{
+                    label: 'Preço',
+                    data: tradePrices,
+                    borderColor: 'blue',
+                    backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Data' } },
+                    y: { title: { display: true, text: 'Preço' } }
+                }
+            }
+        });
+
+        // Gráfico do Volume Executado
+        var ctx2 = document.getElementById('volumeChart').getContext('2d');
+        var volumeChart = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: tradeDates,
+                datasets: [{
+                    label: 'Volume Executado',
+                    data: tradeVolumes,
+                    borderColor: 'red',
+                    backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Data' } },
+                    y: { title: { display: true, text: 'Volume' } }
+                }
+            }
+        });
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
